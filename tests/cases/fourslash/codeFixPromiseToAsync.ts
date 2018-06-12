@@ -18,5 +18,6 @@ verify.codeFix({
 `async function f(): Promise<void> {
     var result = await fetch('http://yahoo.com');
     console.log(result);
+
 }`,
 });
