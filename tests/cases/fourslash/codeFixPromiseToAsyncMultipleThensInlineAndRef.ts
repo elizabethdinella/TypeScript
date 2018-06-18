@@ -3,15 +3,11 @@
 // @target: es6
 
 ////function [|f|]():Promise<boolean> {
-////    return fetch('http://yahoo.com').then(res).then(res2);
+////    return fetch('http://yahoo.com').then(res).then( _ => console.log("done!"));
 ////}
 ////
 ////function res(result){
 ////    return result.ok;
-////}
-////
-////function res2(result2){
-////    console.log(result2);
 ////}
 
 verify.getSuggestionDiagnostics([{
@@ -25,15 +21,11 @@ verify.codeFix({
     newFileContent:
 `async function f():Promise<boolean> {
     let result = await fetch('http://yahoo.com');
-    let result2 = await res(result);
-    return await res2(result2);
+    await res(result);
+    console.log("done!")
 }
 
 function res(result){
     return result.ok;
-}
-
-function res2(result2){
-    console.log(result2);
 }`,
 });
