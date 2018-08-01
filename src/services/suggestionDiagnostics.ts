@@ -3,6 +3,7 @@ namespace ts {
     export function computeSuggestionDiagnostics(sourceFile: SourceFile, program: Program, cancellationToken: CancellationToken): DiagnosticWithLocation[] {
         program.getSemanticDiagnostics(sourceFile, cancellationToken);
         const diags: DiagnosticWithLocation[] = [];
+        const checker = program.getDiagnosticsProducingTypeChecker();
 
         if (sourceFile.commonJsModuleIndicator &&
             (programContainsEs6Modules(program) || compilerOptionsIndicateEs6Modules(program.getCompilerOptions())) &&
@@ -68,6 +69,9 @@ namespace ts {
                 }
             }
 
+            if (isFunctionLikeDeclaration(node)) {
+                addConvertToAsyncFunctionDiagnostics(node, checker, diags);
+            }
             node.forEachChild(check);
         }
     }
@@ -109,7 +113,63 @@ namespace ts {
         }
     }
 
+    function addConvertToAsyncFunctionDiagnostics(node: FunctionLikeDeclaration, checker: TypeChecker, diags: DiagnosticWithLocation[]): void {
+
+        const functionType = checker.getTypeAtLocation(node);
+        if (isAsyncFunction(node) || !node.body || !functionType) {
+            return;
+        }
+
+        const callSignatures = checker.getSignaturesOfType(functionType, SignatureKind.Call);
+        const returnType = callSignatures.length ? checker.getReturnTypeOfSignature(callSignatures[0]) : undefined;
+
+        if (!returnType || !checker.getPromisedTypeOfPromise(returnType)) {
+            return;
+        }
+
+        // collect all the return statements
+        // check that a property access expression exists in there and that it is a handler
+        const returnStatements = getReturnStatementsWithPromiseCallbacks(node);
+        if (returnStatements.length > 0) {
+            diags.push(createDiagnosticForNode(isVariableDeclaration(node.parent) ? node.parent.name : node, Diagnostics.This_may_be_converted_to_an_async_function));
+        }
+    }
+
     function getErrorNodeFromCommonJsIndicator(commonJsModuleIndicator: Node): Node {
         return isBinaryExpression(commonJsModuleIndicator) ? commonJsModuleIndicator.left : commonJsModuleIndicator;
+    }
+
+    export function getReturnStatementsWithPromiseCallbacks(node: Node): Node[] {
+        const returnStatements: Node[] = [];
+        if (isFunctionLike(node)) {
+            forEachChild(node, visit);
+        }
+        else {
+            visit(node);
+        }
+
+        function visit(child: Node) {
+            if (isFunctionLike(child)) {
+                return;
+            }
+
+            if (isReturnStatement(child)) {
+                forEachChild(child, hasCallback);
+            }
+
+            function hasCallback(returnChild: Node) {
+                if (isCallback(returnChild)) {
+                    returnStatements.push(child as ReturnStatement);
+                }
+            }
+
+            forEachChild(child, visit);
+        }
+        return returnStatements;
+    }
+
+    function isCallback(node: Node): boolean {
+        return (isCallExpression(node) && isPropertyAccessExpression(node.expression) &&
+            (node.expression.name.text === "then" || node.expression.name.text === "catch"));
     }
 }

@@ -4171,7 +4171,10 @@
         "category": "Suggestion",
         "code": 80005
     },
-
+    "This may be converted to an async function.": {
+        "category": "Suggestion",
+        "code": 80006
+    },
     "Add missing 'super()' call": {
         "category": "Message",
         "code": 90001
@@ -4550,6 +4553,14 @@
     },
     "Add all missing imports": {
         "category": "Message",
-        "code": 95064
+         "code": 95064
+    },
+    "Convert to async function":{
+        "category": "Message",
+         "code": 95065
+    },
+    "Convert all to async functions": {
+        "category": "Message",
+        "code": 95066
     }
 }
